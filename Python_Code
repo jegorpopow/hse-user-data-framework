@@ -1,0 +1,55 @@
+import json, time
+from websockets.sync.client import connect
+
+
+if __name__ == "__main__":
+    stream = connect(f"ws://127.0.0.1:9999/?url=wss://ws.okx.com:8443/ws/v5/private")
+    login_json = {
+        "op": "login",
+        "args": [
+            {
+                "apiKey": 'test',
+                "passphrase": "",
+                "timestamp": int(time.time()),
+                "sign": 'test',
+            }
+        ]
+    }   
+    print(f"request message: {login_json}")
+    stream.send(json.dumps(login_json))
+    print(f"response message: {stream.recv()}")
+    subscribe_json = {
+        "op": "subscribe",
+        "args": [
+            {
+                "channel": "orders",
+                "instType": "ANY"
+            }
+        ]
+    }
+    print(f"request message: {subscribe_json}")
+    stream.send(json.dumps(subscribe_json))
+    print(f"response message: {stream.recv()}")
+    while True:
+        result = stream.recv()
+        print(f"response message: {result}")
+        data = json.loads(result)
+
+        if "data" not in data:
+            continue
+
+        processed_result = {}
+        processed_result["orderId"] = int(data["data"][0]["ordId"])
+        processed_result["side"] = data["data"][0]["side"]
+        processed_result["price"] = data["data"][0]["px"]
+        processed_result["volume"] = data["data"][0]["sz"]
+        processed_result["state"] = data["data"][0]["state"]
+        processed_result["uTime"] = data["data"][0]["uTime"]
+        processed_result["apiKey"] = "test"
+        processed_result["sign"] = "test"
+        
+        
+        delay = int(time.time() * 1000000)  - int(processed_result["uTime"]) * 1000
+        print(f"delay = {delay}")
+        print(f"processed_result = {processed_result}")
+        stream.send(json.dumps(processed_result))
